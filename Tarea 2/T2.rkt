@@ -82,10 +82,15 @@ Concrete syntax of propositions:
 <value> ::= ...
 |#
 
-;; (deftype PValue ...)
+(deftype PValue
+  (ttV)
+  (ffV))
 
 ;; from-Pvalue : PValue -> Prop
-(define (from-Pvalue p-value) '???)
+(define (from-Pvalue p-value)
+  (match p-value
+    [(ttV) (tt)]
+    [(ffV) (ff)]))
 
 
 ;;----- ;;
@@ -94,7 +99,17 @@ Concrete syntax of propositions:
 
 
 ;; p-subst : Prop Symbol Prop -> Prop
-(define (p-subst target name substitution) '???)
+(define (p-subst target name substitution)
+  (match target
+    [(tt) (tt)]
+    [(ff) (ff)]
+    [(p-not prop) (p-not (p-subst prop name substitution))]
+    [(p-and props) (p-and (map (λ (p) (p-subst p name substitution)) props))]
+    [(p-or props) (p-or (map (λ (p) (p-subst p name substitution)) props))]
+    [(p-id sym)
+     (if (symbol=? sym name) substitution (p-id sym))]
+    [(p-where prop sym prop2)
+     (if (symbol=? sym name) (p-where prop sym prop2) (p-where (p-subst prop name substitution) sym prop2))]))
 
 
 ;;----- ;;
