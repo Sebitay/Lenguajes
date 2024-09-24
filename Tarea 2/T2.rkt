@@ -118,13 +118,26 @@ Concrete syntax of propositions:
 
 
 ;; eval-or : (Listof Prop) -> PValue
-(define (eval-or ps) '???)
+(define (eval-or ps)
+  (match ps
+    [(prop rest ...) #:when (equal? prop (ttV)) (ttV)]
+    [(prop rest ...) #:when (and (empty? rest) (equal? prop (ffV))) (ffV)]
+    [(prop rest ...) #:when (equal? prop (ffV))(eval-or rest)]))
 
 ;; eval-and : (Listof Prop) -> PValue
-(define (eval-and ps) '???)
+(define (eval-and ps)
+  (match ps
+    [((ff) rest ...) (ffV)]
+    [((tt) rest ...) #:when (empty? rest) (ttV)]
+    [((tt) rest ...) (eval-or rest)]))
 
 ;; p-eval : Prop -> PValue
-(define (p-eval p) '???)
+(define (p-eval p)
+  (match p
+    [(tt) (ttV)]
+    [(ff) (ffV)]
+    [(p-not prop) (not (p-eval prop))]
+    [(p-and props) (eval) ]))
 
 ;;------------ ;;
 ;;==== P2 ==== ;;
