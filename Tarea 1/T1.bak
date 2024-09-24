@@ -1,0 +1,21 @@
+#lang play
+
+#|
+<cfrac> ::= (simple <num>)
+         | (compound <num> <cfrac>)
+|#
+(deftype CFraction
+  (simple n)
+  (compound a b cfrac))
+
+
+;; eval :: CFraction -> Rational
+;; evaluates a CFraction
+(define (eval cfrac)
+  (match cfrac
+    [(simple n) n]
+    [(compound a b cfrac) (+ a (/ b (eval cfrac)))]))
+
+
+
+    
