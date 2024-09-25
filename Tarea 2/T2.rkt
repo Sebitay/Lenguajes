@@ -120,24 +120,28 @@ Concrete syntax of propositions:
 ;; eval-or : (Listof Prop) -> PValue
 (define (eval-or ps)
   (match ps
-    [(prop rest ...) #:when (equal? prop (ttV)) (ttV)]
-    [(prop rest ...) #:when (and (empty? rest) (equal? prop (ffV))) (ffV)]
-    [(prop rest ...) #:when (equal? prop (ffV))(eval-or rest)]))
+    [(list) (ffV)]
+    [(list prop rest ...) #:when (equal? (p-eval prop) (ttV)) (ttV)]
+    [(list prop rest ...) #:when (equal? (p-eval prop) (ffV)) (eval-or rest)])) 
 
 ;; eval-and : (Listof Prop) -> PValue
 (define (eval-and ps)
   (match ps
-    [((ff) rest ...) (ffV)]
-    [((tt) rest ...) #:when (empty? rest) (ttV)]
-    [((tt) rest ...) (eval-or rest)]))
+    [(list) (ttV)]
+    [(list prop rest ...) #:when (equal? (p-eval prop) (ffV)) (ffV)]
+    [(list prop rest ...) #:when (equal? (p-eval prop) (ttV)) (eval-and rest)]))
 
 ;; p-eval : Prop -> PValue
 (define (p-eval p)
   (match p
     [(tt) (ttV)]
     [(ff) (ffV)]
-    [(p-not prop) (not (p-eval prop))]
-    [(p-and props) (eval) ]))
+    [(p-not prop) (if (equal? (p-eval prop) (ttV)) (ffV) (ttV))]
+    [(p-and props) (eval-and props)]
+    [(p-or props) (eval-or props)]
+    [(p-where prop sym prop2) (p-eval (p-subst prop sym prop2))]
+    [(p-id sym) (error 'p-eval "free identifier")]
+    ))
 
 ;;------------ ;;
 ;;==== P2 ==== ;;
@@ -150,17 +154,22 @@ Concrete syntax of propositions:
 
 #|
 <expr> ::= ...
+        | (real <num>)
+        | (imaginary <num>)
         | (add <expr> <expr>)
         | (sub <expr> <expr>)
         | (if0 <expr> <expr> <expr>)
-        | ...
+        | (id <sym>)
+        | (with listOf( (cons <sym> <expr>) ) <expr>)
 |#
 (deftype Expr
-  ; ...
+  (real n)
+  (imaginary n)
   (add l r)
   (sub l r)
   (if0 c t f)
-  ; ...
+  (id s)
+  (with d x)
   )
 
 ;;----- ;;
@@ -171,15 +180,32 @@ Concrete syntax of propositions:
 Concrete syntax of expressions:
 
 <s-expr> ::= ...
+        | <num>
+        | (<num> i)
         | (+ <s-expr> <s-expr>)
         | (- <s-expr> <s-expr>)
         | (if0 <s-expr> <s-expr> <s-expr>)
-        | ...
+        | <sym>
+        | (with ( (<sym> <s-expr>)* ) <s-expr>)
 |#
 
 ;; parse : <s-expr> -> Expr
 
-(define (parse s-expr) '???)
+(define (parse s-expr)
+  (match s-expr
+    [(? number? n) (real n)]
+    [(? symbol? x) (id x)]
+    [(list n 'i) #:when (number? n) (imaginary n)]
+    [(list '+ l r) (add (parse l) (parse r))]
+    [(list '- l r) (sub (parse l) (parse r))]
+    [(list 'if0 c t f) (if0 (parse c) (parse t) (parse f))]
+    [(list 'with ds x)
+     (with (map (λ (d)
+              (let ((s (first d))
+                    (n (second d)))
+                (cons s (parse n))))
+            ds)
+   (parse x))]))
 
 ;;----- ;;
 ;; P2.c ;;
