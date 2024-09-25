@@ -211,12 +211,6 @@ Concrete syntax of expressions:
 ;; P2.c ;;
 ;;----- ;;
 
-;; subst :: Expr Symbol Expr -> Expr
-(define (subst in what for) '???)
-
-;;----- ;;
-;; P2.d ;;
-;;----- ;;
 
 #|
 <cvalue> ::= (compV <num> <num>)
@@ -225,17 +219,56 @@ Concrete syntax of expressions:
 (deftype CValue (compV r i))
 
 ;; from-CValue :: CValue -> Expr
-(define (from-CValue v) '???)
+(define (from-CValue v)
+  (match v
+    [(compV r i) (add (real r) (imaginary i))]))
 
 ;; cmplx+ :: CValue CValue -> CValue
-(define (cmplx+ v1 v2) '???)
+(define (cmplx+ v1 v2)
+  (compV
+   (+ (compV-r v1) (compV-r v2)) 
+   (+ (compV-i v1) (compV-i v2))))
+
 
 ;; cmplx- :: CValue CValue -> CValue
-(define (cmplx- v1 v2) '???)
+(define (cmplx- v1 v2)
+  (compV
+   (- (compV-r v1) (compV-r v2)) 
+   (- (compV-i v1) (compV-i v2))))
 
 ;; cmplx0? :: CValue -> Boolean
-(define (cmplx0? v) '???)
+(define (cmplx0? v)
+  (and (zero? (compV-r v)) (zero? (compV-i v))))
 
+
+;;----- ;;
+;; P2.d ;;
+;;----- ;;
+
+(define (subst-defs defs what for)
+  (match defs
+    ['() '()]
+    [(list (cons id val) rest ...) #:when (equal? id what) defs]
+    [(list (cons id val) rest ...) (list (cons id (subst val what for)) (subst-defs rest what for))]))
+
+(define (defs-contain? defs what)
+  (match defs
+    ['() #f]
+    [(list (cons id val) rest ...) #:when (equal? id what) #t]
+    [(list (cons id val) rest ...) (defs-contain? rest what)]))
+
+
+;; subst :: Expr Symbol Expr -> Expr
+(define (subst in what for)
+  (match in
+    [(real n) (real n)]
+    [(imaginary n) (imaginary n)]
+    [(add r l) (add (subst r what for) (subst l what for))]
+    [(sub r l) (sub (subst r what for) (subst l what for))]
+    [(if0 c t f) (if0 (subst c what for) (subst t what for) (subst f what for))]
+    [(id sym) (if (equal? sym what) for sym)]
+    [(with defs expr) #:when (defs-contain? defs what) (with (subst-defs defs what for) expr)]
+    [(with defs expr) (with (subst-defs defs what for) (subst expr what for))]))
 
 ;;----- ;;
 ;; P2.e ;;

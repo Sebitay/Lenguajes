@@ -23,3 +23,10 @@
 (test (parse '(- 3 2)) (sub (real 3) (real 2)))
 (test (parse '(if0 0 3 2)) (if0 (real 0) (real 3) (real 2)))
 (test (parse '(with [(x 0) (y 3)] (+ x y))) (with (list (cons 'x (real 0)) (cons 'y (real 3))) (add (id 'x) (id 'y))))
+
+(test (from-CValue (compV 3 2)) (add (real 3) (imaginary 2)))
+
+(test (cmplx+ (compV 3 2) (compV 2 3)) (compV 5 5))
+(test (cmplx- (compV 3 2) (compV 2 1)) (compV 1 1))
+(test (cmplx0? (compV 0 0)) #t)
+(test (cmplx0? (compV 0 1)) #f)
