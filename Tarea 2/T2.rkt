@@ -120,24 +120,28 @@ Concrete syntax of propositions:
 ;; eval-or : (Listof Prop) -> PValue
 (define (eval-or ps)
   (match ps
-    [(prop rest ...) #:when (equal? prop (ttV)) (ttV)]
-    [(prop rest ...) #:when (and (empty? rest) (equal? prop (ffV))) (ffV)]
-    [(prop rest ...) #:when (equal? prop (ffV))(eval-or rest)]))
+    [(list) (ffV)]
+    [(list prop rest ...) #:when (equal? (p-eval prop) (ttV)) (ttV)]
+    [(list prop rest ...) #:when (equal? (p-eval prop) (ffV)) (eval-or rest)])) 
 
 ;; eval-and : (Listof Prop) -> PValue
 (define (eval-and ps)
   (match ps
-    [((ff) rest ...) (ffV)]
-    [((tt) rest ...) #:when (empty? rest) (ttV)]
-    [((tt) rest ...) (eval-or rest)]))
+    [(list) (ttV)]
+    [(list prop rest ...) #:when (equal? (p-eval prop) (ffV)) (ffV)]
+    [(list prop rest ...) #:when (equal? (p-eval prop) (ttV)) (eval-and rest)]))
 
 ;; p-eval : Prop -> PValue
 (define (p-eval p)
   (match p
     [(tt) (ttV)]
     [(ff) (ffV)]
-    [(p-not prop) (not (p-eval prop))]
-    [(p-and props) (eval) ]))
+    [(p-not prop) (if (equal? (p-eval prop) (ttV)) (ffV) (ttV))]
+    [(p-and props) (eval-and props)]
+    [(p-or props) (eval-or props)]
+    [(p-where prop sym prop2) (p-eval (p-subst prop sym prop2))]
+    [(p-id sym) (error 'p-eval "free identifier")]
+    ))
 
 ;;------------ ;;
 ;;==== P2 ==== ;;
