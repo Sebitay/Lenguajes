@@ -10,10 +10,6 @@ NO
 
 |#
 
-;;------------ ;;
-;;==== P2 ==== ;;
-;;------------ ;;
-
 
 ;;----- ;;
 ;; P1.a ;;
@@ -199,6 +195,7 @@ Concrete syntax of expressions:
     [(list '+ l r) (add (parse l) (parse r))]
     [(list '- l r) (sub (parse l) (parse r))]
     [(list 'if0 c t f) (if0 (parse c) (parse t) (parse f))]
+    [(list 'with ds x) #:when (empty? ds) (error 'parse "'with' expects at least one definition")]
     [(list 'with ds x)
      (with (map (λ (d)
               (let ((s (first d))
@@ -221,7 +218,9 @@ Concrete syntax of expressions:
 ;; from-CValue :: CValue -> Expr
 (define (from-CValue v)
   (match v
-    [(compV r i) (add (real r) (imaginary i))]))
+    [(compV r i) #:when (zero? r) (if (zero? i) (real 0) (imaginary i))]
+    [(compV r i) (if (zero? i) (real r) (add (real r) (imaginary i)))]
+    ))
 
 ;; cmplx+ :: CValue CValue -> CValue
 (define (cmplx+ v1 v2)
@@ -247,9 +246,9 @@ Concrete syntax of expressions:
 
 (define (subst-defs defs what for)
   (match defs
-    ['() '()]
+    ['() (list)]
     [(list (cons id val) rest ...) #:when (equal? id what) defs]
-    [(list (cons id val) rest ...) (list (cons id (subst val what for)) (subst-defs rest what for))]))
+    [(list (cons id val) rest ...) (cons (cons id (subst val what for)) (subst-defs rest what for))]))
 
 (define (defs-contain? defs what)
   (match defs
@@ -266,7 +265,7 @@ Concrete syntax of expressions:
     [(add r l) (add (subst r what for) (subst l what for))]
     [(sub r l) (sub (subst r what for) (subst l what for))]
     [(if0 c t f) (if0 (subst c what for) (subst t what for) (subst f what for))]
-    [(id sym) (if (equal? sym what) for sym)]
+    [(id sym) (if (equal? sym what) for (id sym))]
     [(with defs expr) #:when (defs-contain? defs what) (with (subst-defs defs what for) expr)]
     [(with defs expr) (with (subst-defs defs what for) (subst expr what for))]))
 
@@ -275,4 +274,14 @@ Concrete syntax of expressions:
 ;;----- ;;
 
 ;; interp : Expr -> CValue
-(define (interp expr) '???)
+(define (interp expr)
+  (match expr
+    [(real n) (compV n 0)]
+    [(imaginary n) (compV 0 n)]
+    [(add r l) (cmplx+ (interp r) (interp l))]
+    [(sub r l) (cmplx- (interp r) (interp l))]
+    [(if0 c t f) (if (cmplx0? (interp c)) (interp t) (interp f))]
+    [(with (list (cons id value) rest ...) expr) #:when (empty? rest) (interp (subst expr id  value))]
+    [(with (list (cons id value) rest ...) expr) (interp (subst (with rest expr) id value))]
+    [(id x) (error 'interp "free identifier")]
+    ))

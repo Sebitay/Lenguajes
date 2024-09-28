@@ -1,0 +1,197 @@
+#lang play
+(require "T2.rkt")
+
+(print-only-errors #t)
+
+
+;;------------ ;;
+;;==== P1 ==== ;;
+;;------------ ;;
+
+
+;;----- ;;
+;; P1.b ;;
+;;----- ;;
+
+(test (parse-prop 'true) (tt))
+(test (parse-prop 'false) (ff))
+(test (parse-prop '(not false)) (p-not (ff)))
+(test (parse-prop '(not true)) (p-not (tt)))
+(test/exn (parse-prop ' (and )) "parse-prop: and expects at least two operands")
+(test/exn (parse-prop ' (or )) "parse-prop: or expects at least two operands")
+(test/exn (parse-prop ' (and true)) "parse-prop: and expects at least two operands")
+(test/exn (parse-prop ' (or true)) "parse-prop: or expects at least two operands")
+(test (parse-prop '(and true true false)) (p-and (list (tt) (tt) (ff))))
+(test (parse-prop '(or true true false)) (p-or (list (tt) (tt) (ff))))
+(test (parse-prop ' (x where [x true])) (p-where (p-id'x)'x (tt)))
+(test (parse-prop ' (false where [x true])) (p-where (ff)'x (tt)))
+(test (parse-prop ' (x where [x (y where [y (and true true (or false (not true)))])])) (p-where (p-id 'x) 'x (p-where (p-id 'y) 'y (p-and (list (tt) (tt) (p-or (list (ff) (p-not (tt)))))))))
+(test (parse-prop 'x) (p-id 'x))
+
+
+;;----- ;;
+;; P1.c ;;
+;;----- ;;
+
+(test (from-PValue (ttV)) (tt))
+(test (from-PValue (ffV)) (ff))
+(test/exn (from-PValue 'aaa) "Valor desconocido")
+
+
+
+;;----- ;;
+;; P1.d ;;
+;;----- ;;
+
+(test (p-subst (p-id'x)'x (tt)) (tt))
+(test (p-subst (p-id'x)'y (tt)) (p-id'x))
+(test (p-subst (p-not (tt)) 'x (tt)) (p-not (tt)))
+(test (p-subst (p-and (list (tt) (tt))) 'x (tt)) (p-and (list (tt) (tt))))
+(test (p-subst (p-or (list (tt) (tt))) 'x (tt)) (p-or (list (tt) (tt))))
+(test (p-subst (p-where (p-id'x)'x (tt))'x (ff)) (p-where (p-id 'x)'x (tt)))
+(test (p-subst (p-where (p-id'x)'y (tt))'x (ff)) (p-where (ff)'y (tt)))
+(test (p-subst (p-and (list (p-not (tt)) (p-where (p-id'x)'y (tt))))'x (ff)) (p-and (list (p-not (tt)) (p-where (ff)'y (tt)))))
+
+
+
+;;----- ;;
+;; P1.e ;;
+;;----- ;;
+
+(test (eval-or  (list (tt) (tt) (ff))) (ttV))
+(test (eval-or  (list (ff) (ff) (ff))) (ffV))
+(test (eval-or  (list (tt) 'sdc)) (ttV))
+
+(test (eval-and (list (ff) (ff) (tt))) (ffV))
+(test (eval-and (list (tt) (tt) (tt))) (ttV))
+(test (eval-and (list (ff) 'sdc)) (ffV))
+
+
+(test (p-eval (tt)) (ttV))
+(test (p-eval (ff)) (ffV))
+(test (p-eval (p-not (tt))) (ffV))
+(test (p-eval (p-not (ff))) (ttV))
+(test (p-eval (p-not (p-not (ff)))) (ffV))
+(test (p-eval (p-and (list (tt) (tt) (tt)))) (ttV))
+(test (p-eval (p-and (list (tt) (tt) (ff)))) (ffV))
+(test (p-eval (p-and (list (ff) 'rvimr))) (ffV))
+(test (p-eval (p-or (list (ff) (ff) (ff)))) (ffV))
+(test (p-eval (p-or (list (ff) (ff) (tt)))) (ttV))
+(test (p-eval (p-or (list (tt) 'rvimr))) (ttV))
+(test (p-eval (p-or (list (ff) (p-and (list (tt) (ff))) (p-not (ff))))) (ttV))
+(test (p-eval (p-where (p-id'x)'x (tt))) (ttV))
+(test (p-eval (p-where (p-id'x)'x (p-where (p-id 'z) 'z (ff)))) (ffV))
+(test (p-eval (p-where (p-id 'x) 'x (p-where (p-id 'y) 'y (p-and (list (tt) (tt) (p-or (list (ff) (p-not (tt))))))))) (ffV))
+(test/exn (p-eval 'rvdvrc) "Unknown value")
+
+
+;;------------ ;;
+;;==== P2 ==== ;;
+;;------------ ;;
+
+;;----- ;;
+;; P2.b ;;
+;;----- ;;
+
+(test (parse '(3 i)) (imaginary 3))
+(test (parse '2) (real 2))
+(test (parse '(+ 3 2)) (add (real 3) (real 2)))
+(test (parse '(+ 3 (+ 2 (3 i)))) (add (real 3) (add  (real 2) (imaginary 3))))
+(test (parse '(- 3 2)) (sub (real 3) (real 2)))
+(test (parse '(- 3 (- 2 (3 i)))) (sub (real 3) (sub (real 2) (imaginary 3))))
+(test (parse '(if0 0 3 (1 i))) (if0 (real 0)  (real 3) (imaginary 1)) )
+(test (parse '(if0 3 (+ 4 2) (1 i))) (if0 (real 3)  (add (real 4) (real 2)) (imaginary 1)) )
+(test/exn (parse ' (with [] 1)) "parse: 'with' expects at least one definition")
+(test (parse ' (with [(x 1) (y 1)] (+ x y))) (with (list (cons 'x (real 1)) (cons 'y (real 1))) (add (id 'x) (id 'y))))
+(test (parse ' (with [(x (+ 1 2)) (y 1) (z (3 i))] (+ x y))) (with (list (cons 'x (add (real 1)(real 2))) (cons 'y (real 1)) (cons 'z (imaginary 3))) (add (id 'x) (id 'y))))
+
+
+;;----- ;;
+;; P2.c ;;
+;;----- ;;
+
+(test (from-CValue (compV 4 6)) (add (real 4) (imaginary 6)))
+(test (from-CValue (compV 1 0)) (real 1))
+(test (from-CValue (compV 0 0)) (imaginary 0))
+(test (from-CValue (compV 0 3)) (imaginary 3))
+(test/exn (from-CValue 'cdvrv) "Invalid Expression")
+
+(test (cmplx+ (compV 1 2) (compV 3 4)) (compV 4 6))
+
+(test (cmplx- (compV 3 2) (compV 0 1)) (compV 3 1))
+
+(test (cmplx0? (compV 0 1)) #f)
+(test (cmplx0? (compV 1 0)) #f)
+(test (cmplx0? (compV 0 0)) #t)
+
+
+;;----- ;;
+;; P2.d ;;
+;;----- ;;
+
+(test (subst (id 'x) 'x (imaginary 4)) (imaginary 4))
+(test (subst (id 'y) 'x (imaginary 8)) (id 'y))
+(test (subst (add (with (list (cons 'x (real 1)) (cons 'y (real 1))) (add (id 'x) (id 'y))) (imaginary 4)) 'x (real 3)) (add (with (list (cons 'x (real 1)) (cons 'y (real 1))) (add (id 'x) (id 'y))) (imaginary 4)))
+(test (subst (add (id 'x) (real 4)) 'x (real 2)) (add (real 2) (real 4)))
+(test (subst (sub (with (list (cons 'x (real 1)) (cons 'y (real 1))) (sub (id 'x) (id 'y))) (imaginary 4)) 'x (real 3)) (sub (with (list (cons 'x (real 1)) (cons 'y (real 1))) (sub (id 'x) (id 'y))) (imaginary 4)))
+(test (subst (sub (imaginary 2) (id 'y)) 'y (real 3)) (sub (imaginary 2) (real 3)))
+(test (subst (if0 (real 0) (id 'x) (id 'y)) 'y (real 2)) (if0 (real 0) (id'x) (real 2)))
+(test (subst (if0 (real 2) (id 'x) (id 'y)) 'z (real 9)) (if0 (real 2) (id 'x) (id 'y)))
+(test (subst (cons 'x (real 3)) 'x (real 2)) (cons 'x (real 3)))
+(test (subst (cons 'y (id 'x)) 'x (real 2)) (cons 'y (real 2)))
+(test (subst (with (list (cons 'x (real 2)) (cons 'y (id 'z))) (add (id 'x) (id 'z))) 'z (real 1)) (with (list (cons 'x (real 2)) (cons 'y (real 1))) (add (id 'x) (real 1))))
+(test (subst (with (list (cons 'x (real 2)) (cons 'y (id 'x))) (add (id 'x) (id 'x))) 'x (real 1)) (with (list (cons 'x (real 2)) (cons 'y (id 'x))) (add (id 'x) (id 'x))))
+(test (subst (parse '(with [(x 2) (y x)] (- x x))) 'x 4)  (with (list (cons 'x (real 2)) (cons 'y (id 'x))) (sub (id 'x) (id 'x))))
+
+
+
+(test (find 'x (list (cons 'x (real 3)) (cons 'y (real 4)))) #t)
+(test (find 'z (list (cons 'x (real 3)) (cons 'y (real 4)))) #f)
+
+(test (replace (list (cons 'x (real 3)) (cons 'y (id 'z))) 'z (real 3)) (list (cons 'x (real 3)) (cons 'y (real 3))))
+(test (replace (list (cons 'x (real 3)) (cons 'y (id 'z))) 'f (real 3)) (list (cons 'x (real 3)) (cons 'y (id 'z))))
+
+
+;;----- ;;
+;; P2.e ;;
+;;----- ;;
+(test (sub-with (add (id 'x) (real 3)) (list (cons 'x (real 2)))) (add (real 2) (real 3)))
+(test (sub-with (add (id 'x) (id 'y)) (list (cons 'x (real 2)) (cons 'y (imaginary 3))))(add (real 2) (imaginary 3)))
+(test (sub-with (add (id 'x) (real 3)) (list (cons 'z (real 2)))) (add (id 'x) (real 3)))
+
+
+(test (sub-list (list (cons 'y (id 'x)) (cons 'z (id 'x))) 'x (real 3)) (list (cons 'y (real 3)) (cons 'z (real 3))))
+(test (sub-list (list (cons 'y (add (id 'x) (real 1))) (cons 'z (id 'y))) 'x (real 3)) (list (cons 'y (add (real 3) (real 1))) (cons 'z (add (real 3) (real 1)))))
+(test (sub-list (list (cons 'y (id 'x)) (cons 'z (id 'x))) 'f (real 3)) (list (cons 'y (id 'x)) (cons 'z (id 'x))))
+(test (sub-list (list (cons 'y (id 'x)) (cons 'x (id 'x)) (cons 'z (id 'x))) 'x (real 4)) (list (cons 'y (real 4)) (cons 'x (real 4)) (cons 'z (id 'x))))
+
+
+
+(test (interp (real 0)) (compV 0 0))
+(test (interp (real 4)) (compV 4 0))
+(test (interp (imaginary 0)) (compV 0 0))
+(test (interp (imaginary 4)) (compV 0 4))
+(test (interp (add (imaginary 4) (real 3))) (compV 3 4))
+(test (interp (add (real 4) (real 3))) (compV 7 0))
+(test (interp (add (imaginary 4) (imaginary 3))) (compV 0 7))
+(test (interp (sub (imaginary 4) (real 3))) (compV -3 4))
+(test (interp (sub (real 4) (real 3))) (compV 1 0))
+(test (interp (sub (imaginary 4) (imaginary 3))) (compV 0 1))
+(test (interp (if0 (add (imaginary 3) (real -1)) (real 5) (imaginary 7))) (compV 0 7))
+(test (interp (if0 (add (imaginary 1) (imaginary -1)) (real 5) (real 7))) (compV 5 0))
+(test (interp (if0 (add (imaginary 3) (imaginary -1)) (real 5) (add (real 7) (sub (imaginary -1) (imaginary 8))))) (compV 7 -9))
+(test (interp (with (list (cons 'x (real 2)) (cons 'y (add (id 'x) (real 1)))) (add (id 'x) (id 'y)))) (compV 5 0))
+(test (interp (with (list (cons 'x (real 3)) (cons 'y (id 'x)) (cons 'z (id 'x))) (add (id 'x) (add (id 'y) (id 'z))))) (compV 9 0))
+(test (interp (parse '(if0 (0 i) (with [(x 3) (y (with [(x 2) (z x) (x 3) (y x)] (+ x z)))] (+ x y)) (3 i) ))) (compV 8 0))
+(test/exn (interp (with (list (cons 'x (real 3)) (cons 'y (id 'x)) (cons 'z (id 'x))) (add (id 'x) (add (id 'y) (id 'f))))) "Variable libre")
+
+
+
+
+
+
+
+
+
+
+
